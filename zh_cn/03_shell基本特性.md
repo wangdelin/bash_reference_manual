@@ -204,6 +204,173 @@ for (( expr1 ; expr2 ; expr3 )) ; do commands ; done
 
 #### 3.2.4.2 条件结构
 
+- if
+
+`if`命令的语法如下:
+
+```bash
+
+if test-commands; then
+  consequent-commands;
+[elif more-test-commands; then
+  more-consequents;]
+[else alternate-consequents;]
+fi
+```
+
+如果test-commands命令列表执行的返回状态是0，consequent-commands命令列表则会被执行。如果test-commands返回非零状态，依次执行每个elif列表，如果其退出状态为零，则执行相应的more-consequents并且命令完成。如果'else alternate-consequents'存在，并且最后的if或elif返回一个非零的状态，那么'alternate-consequents'会被执行。其返回状态是执行的最后一个命令的退出状态，如果没有条件测试为true，则返回0。
+
+- case
+
+`case`命令的语法如下:
+
+```bash
+
+case word in [ [(] pattern [| pattern]…) command-list ;;]… esac
+```
+
+`case`将根据与word匹配的第一个pattern选择性执行command-list。如果shell的nocasematch选项（查看4.3.2 shopt内置命令的详细内容）开启，匹配将忽略字母字符的大小写。'|'分割多个pattern, 而')'操作符表示pattern列表终止。pattern列表和其关联的command-list被称为子句。
+
+每个子句必须以';;', ';&', 或';;&'之一结束。在尝试匹配之前，word会经历波浪号扩展，参数扩展，命令替换，算术运算扩展，和引用删除。每一个pattern也会经历波浪号扩展，参数扩展，命令替换，算术运算扩展。
+
+可以有任何数量的case子句，它们必须以';;', ';&', 或';;&'之一结束。匹配到的第一个pattern决定了哪个command-list被执行。常见的用法是将'*'作为最后一个pattern来定义默认的子句，因为该pattern将始终匹配。
+
+下面脚本中的`case`例子用来描述动物的一个有趣特征:
+
+```bash
+
+echo -n "Enter the name of an animal: "
+read ANIMAL
+echo -n "The $ANIMAL has "
+case $ANIMAL in
+  horse | dog | cat) echo -n "four";;
+  man | kangaroo ) echo -n "two";;
+  *) echo -n "an unknown number of";;
+esac
+echo " legs."
+```
+
+如果使用了';;'操作符，如果第一个pattern匹配到以后，则不会尝试继续匹配。使用';&'代替';;'，则会执行下一个子句关联的command-list（如果有）。使用';;&'代替';;'，则shell继续测试下一个子句中的pattern（如果有），并在成功的匹配上执行任何关联的命令列表。
+
+
+如果没有patter被匹配，则返回状态为0，否则为执行的command-list的退出状态。
+
+- select
+
+`select`可以很容易的生成目录。它具有与`for`命令几乎相同的语法：
+
+```bash
+
+select name [in words …]; do commands; done
+```
+
+'in'后面的words列表被展开，生成一个项目列表。扩展后的words集合被打印在标准错误输出流上，每个前面都有一个数字。如果'in words'省略，则位置参数被打印，如同指定了'in "$@"'一样。然后显示PS3提示符，并从标准输入读取一行。如果该行由显示的words之一组成，则name会被设置为那个word。如果该行为空，则这些words和提示符会再一次显示。如果读到了EOF，则`select`命令完成。如果读到其他值，则会设置name为空。读到的行会被保存在REPLY变量中。
+
+每次选择之后，commands会被执行，直到`break`命令被执行，此时`select`命令完成。
+
+下面是一个允许用户从当前目录中选择文件名，并显示所选文件的名称和索引的例子。
+
+```bash
+
+select fname in *;
+do
+    echo you picked $fname \\($REPLY\\)
+    break;
+done
+```
+
+- ((...))
+
+```bash
+
+(( expression ))
+```
+
+算术运算表达式expression根据下面描述的规则（查看6.5 shell算术运算）计算。如果表达式的值不为零，返回状态为0，否则返回状态为1。这相当于
+
+```bash
+
+let "expression"
+```
+
+查看4.2 Bash内置命令，了解`let`内置命令的全部描述。
+
+- [[...]]
+
+```bash
+
+[[ expression ]]
+```
+
+根据条件表达式expression的计算结果返回0或1的状态。表达式由6.4 Bash条件表达式中描述的主要部分组成。[[和]]之间的词不执行词分割和文件名扩展。波浪号扩展，参数和变量扩展，算术运算扩展，命令替换，进程替换，以及引用删除会被执行。诸如'-f'的条件运算操作符以不带引号的方式，才能被识别。
+
+当'<'和'>'与[[一起使用时，它是按照当前语言环境的字典排序。
+
+当使用'=='和'!='操作符时，操作符右边的字符串被认为是一种pattern，并根据3.5.8.1 模式匹配中描述的规则进行匹配，就好像启用了extglob shell选项一样。'='操作符与'=='。如果开启了nocasematch选项（查看4.3.2 shopt内置命令的详细描述），匹配执行将忽视大小写。如果字符串匹配('==')或者不匹配('!=')模式，则返回0，否则返回1。模式的任何部分都可以被引用来强制被引用的部分以一个字符串的形式被匹配。
+
+另外一个二进制操作符'=~'可用，它具有'=='和'!='同样的优先级。当它使用是，操作符右边的字符串被认为是一个扩展的正则表达式，并进行相应的匹配（如在regex3中）。如果字符串与模式匹配，返回值为0，否则返回1。如果正则表达式在语法上不正确，条件表达式的返回值为2。如果开启了nocasematch选项（查看4.3.2 shopt内置命令的详细描述），匹配执行将忽视大小写。模式的任何部分都可以被引用来强制被引用的部分以一个字符串的形式被匹配。正则表达式中的括号表达式必须仔细对待，因为正常引用的字符在括号之间会丢失它们的含义。如果模式存储在一个shell变量中，引用这个变量扩展会强制整个模式以一个字符串的形式被匹配。正则表达式中括号子表达式匹配的子字符串会被存储在BASH_REMATCH变量中。BASH_REMATCH中索引为0的元素是与整个正则表达式匹配的字符串部分。BASH_REMATCH中索引为n的元素是匹配第n个括号子表达式的字符串部分。
+
+例如，下面的代码将匹配存储（在shell变量line中）的一行，它是包含任意数量（包括0个）的空白字符，0个或者1个'a'，然后后接一个'b'的序列。
+
+```bash
+
+[[ $line =~ [[:space:]]*(a)?b ]]
+```
+
+这意味着，这意味着像'aab'和'aaaaaab'这样的值将会匹配，在其值中的任何地方包含一个“b”的行将匹配。
+
+将正则表达式存储在shell变量中通常是避免引用shell特殊字符问题的有用方法。有时很难不用引号来表达正则表达式，或很难在注意shell的引用删除的同时跟踪正则表达式使用的引用。使用变量来存储模式可以减少这些问题。例如，下面的这个例子相当于上面的。
+
+```bash
+
+patter='[[:space:]]*(a)?b'
+[[ $line =~ $pattern ]]
+```
+
+如果你想要匹配正则表达式语法的特殊字符，必须引用它来消除其特殊含义。这意味着模式'xxx.txt'中，'.'匹配字符串中的任何字符（它在正则表达式中的特殊含义），但是在模式'"xxx.txt"'中，它仅匹配'.'字符。shell程序员应该特别注意反斜杆，因为shell和正则表达式都使用它来消除后面字符的特殊含义。下面两组命令是不相等的:
+
+```bash
+
+pattern='\.'
+[[ . =~ $pattern ]]
+[[ . =~ \. ]]
+
+[[ . =~ "$pattern" ]]
+[[ . =~ '\.' ]]
+```
+
+第一组代码两个匹配都成功， 但是第二组都失败，因为第二组的两个反斜杆都是匹配的模式的一部分。在第一组的两个例子中，反斜杆消除了'.'的特殊含义，因此匹配字符'.'。如果第一个例子中字符串不是'.'，而是其他字符，比如说'a'，那么patter将不会被匹配，因为模式中被引用的'.'已经失去了它匹配任何单个字符的特殊含义。
+
+expression可以使用以下运算符组合，按优先级顺序列出：
+
+```bash
+
+( expression )
+```
+
+返回表达式的值。这可以用于覆盖运算符的正常优先级。
+
+```bash
+
+! expression
+```
+
+如果expression为假，那么它为真
+
+```bash
+
+expression1 && expression2
+```
+
+如果expression1和expression2都为真，那么它为真
+
+```bash
+
+expression1 || expression2
+```
+
+如果expression1或expression2为真，那么它为真
+
 #### 3.2.4.3 分组命令
 
 ### 3.2.5 协进程
