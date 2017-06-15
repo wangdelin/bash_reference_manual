@@ -635,6 +635,181 @@ chown root /usr/{ucb/{ex,edit},lib/{ex?.?*,how_ex}}
 
 ### 3.5.3 shell参数扩展
 
+'$'字符引入参数扩展，命令替换，或算术扩展。要扩展的参数名或符号用大括号括起来，大括号是可选的，但是为了保护变量被紧跟其后的字符扩展，它可以解释为名称的一部分。
+
+当使用大括号时，与之匹配的结束大括号是第一个不被反斜杆或在引用字符串中转义，及不在嵌入的算术扩展，命令替换或参数扩展中的'}'。
+
+参数扩展的基础形式是`${parameter}`。参数的值被替换。该parameter是上面描述（查看3.4 shell参数）的shell参数或者一个数组引用（查看6.7 数组）。当parameter是大于一个数字的位置参数，或者当参数后面是不被解释为其名称的一部分的字符时，大括号是必须的。
+
+如果parameter的第一个字符是感叹号(!)，并且parameter不是nameref, it introduces a level of variable indirection. Bash uses the value of the variable formed from the rest of parameter as the name of the variable; this variable is then expanded and that value is used in the rest of the substitution, rather than the value of parameter itself. This is known as indirect expansion. If parameter is a nameref, this expands to the name of the variable referenced by parameter instead of performing the complete indirect expansion. The exceptions to this are the expansions of ${!prefix*} and ${!name[@]} described below. The exclamation point must immediately follow the left brace in order to introduce indirection.
+
+在下面的每种情况中，词都会发生波浪号扩展，参数扩展，命令替换和算术扩展。
+
+当不执行子字符串扩展，使用下面描述的形式（例如，':-'），Bash会测试parameter是否存在或是否为空。省略冒号仅对未设置的parameter进行测试。换句话说，如果包含冒号，操作符将测试parameter的存在和其值不为空；如果省略冒号，操作符仅测试parameter的存在。
+
+- ${parameter:-word}
+
+如果parameter未设置或者为空，替换为word的扩展，否则替换为parameter。
+
+- ${parameter:=word}
+
+如果parameter未设置或者为空，word的扩展会赋值给parameter。然后替换为parameter的值。不能以这种方式为位置参数和特殊参数赋值。
+
+- ${parameter:?word}
+
+如果parameter未设置或者为空，word的扩展（如果word不存在，则是一条提示parameter未设置或为空的消息）会被写到标准错误和shell，如果不是交互模式，这则退出。否则，将会替换为parameter的值。
+
+- ${parameter:+word}
+
+如果parameter未设置或者为空，不会发生替换，否则会替换为word的扩展。
+
+- ${parameter:offset}
+- ${parameter:offset:length}
+
+这被称为子字符串扩展。它扩展为parameter值中从offset指定的字符开始的length个字符的字符串。如果parameter是'@'，带'@'或'*'的索引数组，或一个关联数组名，结果会有所不同，如下描述。如果length省略，它会扩展为parameter值中从offset指定的字符开始到最后一个字符的子字符串。length和offset是算术表达式（查看6.5 shell算术运算）。
+
+如果offset小于0，该值用作从parameter值的末尾开始的字符偏移量。如果length小于0，它被解释为从parameter值的末尾开始的字符偏移量而不是字符数量。该扩展就是offset与该结果之间的字符。
+
+> **注意:**
+
+> - 负偏移量必须用至少一个空白与冒号隔开，以避免与':-'扩展混淆。
+
+以下是一些示例，说明参数和下标数组的子串扩展。
+
+```bash
+
+$ string=01234567890abcdefgh
+$ echo ${string:7}
+7890abcdefgh
+$ echo ${string:7:0}
+
+$ echo ${string:7:2}
+78
+$ echo ${string:7:-2}
+7890abcdef
+$ echo ${string: -7}
+bcdefgh
+$ echo ${string: -7:0}
+
+$ echo ${string: -7:2}
+bc
+$ echo ${string: -7:-2}
+bcdef
+$ set -- 01234567890abcdefgh
+$ echo ${1:7}
+7890abcdefgh
+$ echo ${1:7:0}
+
+$ echo ${1:7:2}
+78
+$ echo ${1:7:-2}
+7890abcdef
+$ echo ${1: -7}
+bcdefgh
+$ echo ${1: -7:0}
+
+$ echo ${1: -7:2}
+bc
+$ echo ${1: -7:-2}
+bcdef
+$ array[0]=01234567890abcdefgh
+$ echo ${array[0]:7}
+7890abcdefgh
+$ echo ${array[0]:7:0}
+
+$ echo ${array[0]:7:2}
+78
+$ echo ${array[0]:7:-2}
+7890abcdef
+$ echo ${array[0]: -7}
+bcdefgh
+$ echo ${array[0]: -7:0}
+
+$ echo ${array[0]: -7:2}
+bc
+$ echo ${array[0]: -7:-2}
+bcdef
+```
+
+如果parameter是'@'，那么结果是从offset开始的length个位置参数。负offset是相对于最后一个位置参数的偏移量，因此offset为-1被计算为最后一个位置参数。如果length为小于0，则会出现扩展错误。
+
+以下示例说明了位置参数的子串扩展：
+
+```bash
+
+$ set -- 1 2 3 4 5 6 7 8 9 0 a b c d e f g h
+$ echo ${@:7}
+7 8 9 0 a b c d e f g h
+$ echo ${@:7:0}
+
+$ echo ${@:7:2}
+7 8
+$ echo ${@:7:-2}
+bash: -2: substring expression < 0
+$ echo ${@: -7:2}
+b c
+$ echo ${@:0}
+./bash 1 2 3 4 5 6 7 8 9 0 a b c d e f g h
+$ echo ${@:0:2}
+./bash 1
+$ echo ${@: -7:0}
+```
+
+如果parameter是以'@'或'*'为下标的索引数组，其结果是从数组的${parameter[offset]}开始的length个元素。负offset是相对于数组最大索引的偏移量。如果length为小于0，则会出现扩展错误。
+
+这些示例显示如何使用索引数组的子串扩展：
+
+```bash
+
+$ array=(0 1 2 3 4 5 6 7 8 9 0 a b c d e f g h)
+$ echo ${array[@]:7}
+7 8 9 0 a b c d e f g h
+$ echo ${array[@]:7:2}
+7 8
+$ echo ${array[@]: -7:2}
+b c
+$ echo ${array[@]: -7:-2}
+bash: -2: substring expression < 0
+$ echo ${array[@]:0}
+0 1 2 3 4 5 6 7 8 9 0 a b c d e f g h
+$ echo ${array[@]:0:2}
+0 1
+$ echo ${array[@]: -7:0}
+```
+
+对关联数组应用子字符串扩展会产生未定义的结果。
+
+子字符串索引是从0开始的，除非使用的是位置参数，这种情况下，默认是从1开始，$@以列表为前缀。
+
+- ${!prefix*}
+- ${!prefix@}
+
+扩展为那些变量名以prefix为开始的名称，并以IFS特殊变量的第一个字符分割。当使用'@'并且扩展在双引号内，每个变量名会被扩展为一个单独的词。
+
+- ${!name[@]}
+- ${!name[*]}
+
+如果name是一个数组变量，它将扩展为数组name索引的列表。如果name不是数组，name有设置扩展为0，没设置则扩展为空。当使用'@'并且扩展在双引号内，每个key会被扩展为一个单独的词。
+
+- ${#parameter}
+
+替换为parameter扩展值的字符长度。如果parameter是'*'或'@'，替换为位置参数的长度。如果parameter是一个带'*'或'@'下标的数组名，则替换为数组的元素个数。如果parameter是一个带负数下标的索引数组名称，该数字被解释为相对参数最大索引的偏移，因此负数索引从数组尾部开始计数，-1表示数组最后一个元素。
+
+- ${parameter#word}
+- ${parameter##word}
+
+- ${parameter%word}
+- ${parameter%%word}
+
+- ${parameter/pattern/string}
+
+- ${parameter^pattern}
+- ${parameter^^pattern}
+- ${parameter,pattern}
+- ${parameter,,pattern}
+
+- ${parameter@operator}
+
 ### 3.5.4 命令替换
 
 ### 3.5.5 算术运算扩展
