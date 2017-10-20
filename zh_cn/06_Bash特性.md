@@ -7,9 +7,9 @@
 6.2 Bash启动文件
 ----------------
 
-这章描述Bash是怎样执行它的启动文件的。如果任何文件存在但是没有读权限，则Bash会报错。文件名中的波浪号会被扩展，如波浪号扩展章节的描述（查看 3.5.2 波浪号扩展）。
+这章描述Bash是怎样执行它的启动文件的。如果任何文件存在但是没有读权限，则Bash会报错。文件名中的波浪号会被扩展，如波浪号扩展章节的描述（查看 [3.5.2 波浪号扩展][3.5.2]）。
 
-交互式shell在交互式shell章节有描述。
+交互式shell在[交互式shell][6.3]章节有描述。
 
 **以交互式登录shell，或带-`-login`参数调用**
 
@@ -88,3 +88,6 @@ Bash attempts to determine when it is being run with its standard input connecte
 
 6.11 Bash POSIX模式
 -------------------
+
+[3.5.2]: /zh_cn/03_shell基本特性.md#352-波浪号扩展
+[6.3]: /zh_cn/06_Bash特性.md#63-交互shell
